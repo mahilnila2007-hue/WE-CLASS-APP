@@ -11,6 +11,8 @@ class FocusGuardService extends ChangeNotifier {
   bool _isGlobalEnabled = true;
   int _phoneUsageThreshold = 20; // Default 20 seconds
   bool _notificationsEnabled = true;
+  bool _hapticEnabled = true;
+  bool _soundAlertEnabled = true;
 
   // Faculty manual override state for current class
   bool _isManuallyDisabledByFaculty = false;
@@ -30,6 +32,10 @@ class FocusGuardService extends ChangeNotifier {
   final List<PhoneViolation> _violations = [];
   final List<FocusGuardLog> _auditLogs = [];
 
+  // Urgent Alert & Real-time Triggering Engine
+  PhoneViolation? _latestUrgentAlert;
+  String? _activeStudentNotice;
+
   // Simulated Time for live demonstration (null uses real device time)
   DateTime? _simulatedTime;
 
@@ -37,6 +43,8 @@ class FocusGuardService extends ChangeNotifier {
   bool get isGlobalEnabled => _isGlobalEnabled;
   int get phoneUsageThreshold => _phoneUsageThreshold;
   bool get notificationsEnabled => _notificationsEnabled;
+  bool get hapticEnabled => _hapticEnabled;
+  bool get soundAlertEnabled => _soundAlertEnabled;
   bool get isManuallyDisabledByFaculty => _isManuallyDisabledByFaculty;
   String get manualDisableReason => _manualDisableReason;
   int get currentContinuousUsageSeconds => _currentContinuousUsageSeconds;
@@ -45,6 +53,9 @@ class FocusGuardService extends ChangeNotifier {
   List<PhoneViolation> get violations => List.unmodifiable(_violations);
   List<FocusGuardLog> get auditLogs => List.unmodifiable(_auditLogs);
   DateTime? get simulatedTime => _simulatedTime;
+  PhoneViolation? get latestUrgentAlert => _latestUrgentAlert;
+  String? get activeStudentNotice => _activeStudentNotice;
+  int get unacknowledgedCount => _violations.where((v) => v.status != 'ACKNOWLEDGED').length;
 
   FocusGuardService() {
     _initDefaultTimetable();
@@ -389,6 +400,8 @@ class FocusGuardService extends ChangeNotifier {
     final period = currentPeriod;
     final newId = 'viol_${DateTime.now().millisecondsSinceEpoch}';
 
+    final String urgency = duration >= 40 ? 'CRITICAL' : (duration >= 25 ? 'HIGH' : 'MEDIUM');
+
     final violation = PhoneViolation(
       id: newId,
       studentId: '927624BEC121',
@@ -404,9 +417,21 @@ class FocusGuardService extends ChangeNotifier {
       timestamp: DateTime.now(),
       type: 'PHONE_USAGE',
       status: 'NEW',
+      urgency: urgency,
+      actionTaken: 'NONE',
+      studentPhone: '+91 98401 23456',
     );
 
     _violations.insert(0, violation);
+    _latestUrgentAlert = violation;
+    
+    // Trigger Haptic Feedback on Staff Device
+    if (_hapticEnabled) {
+      try {
+        HapticFeedback.heavyImpact();
+      } catch (_) {}
+    }
+
     notifyListeners();
 
     // Persist to Cloud Firestore phoneViolations collection
@@ -420,17 +445,195 @@ class FocusGuardService extends ChangeNotifier {
     }
   }
 
+  /// -----------------------------------------------------------
+  /// LIVE SIMULATION & INSTANT TRIGGERING
+  /// -----------------------------------------------------------
+  void triggerLiveSimulatedViolation({
+    String studentName = 'Mahil Ram E K',
+    String studentId = '927624BEC121',
+    String department = 'ECE',
+    int duration = 32,
+    String urgency = 'CRITICAL',
+  }) {
+    final period = currentPeriod;
+    final newId = 'viol_sim_${DateTime.now().millisecondsSinceEpoch}';
+
+    final violation = PhoneViolation(
+      id: newId,
+      studentId: studentId,
+      studentName: studentName,
+      department: department,
+      year: 'III Year',
+      subject: period.subject,
+      room: period.room,
+      facultyId: period.facultyId.isNotEmpty ? period.facultyId : 'STF1024',
+      period: period.periodNumber,
+      usageDuration: duration,
+      threshold: _phoneUsageThreshold,
+      timestamp: DateTime.now(),
+      type: 'PHONE_USAGE',
+      status: 'NEW',
+      urgency: urgency,
+      actionTaken: 'TRIGGER_TEST',
+      studentPhone: '+91 98401 23456',
+    );
+
+    _violations.insert(0, violation);
+    _latestUrgentAlert = violation;
+
+    if (_hapticEnabled) {
+      try {
+        HapticFeedback.heavyImpact();
+      } catch (_) {}
+    }
+
+    notifyListeners();
+  }
+
+  void dismissUrgentAlert() {
+    _latestUrgentAlert = null;
+    notifyListeners();
+  }
+
+  void dismissStudentNotice() {
+    _activeStudentNotice = null;
+    notifyListeners();
+  }
+
+  void toggleHaptic(bool enabled) {
+    _hapticEnabled = enabled;
+    notifyListeners();
+  }
+
+  void toggleSoundAlert(bool enabled) {
+    _soundAlertEnabled = enabled;
+    notifyListeners();
+  }
+
+  /// Send instant warning notice to student's screen
+  void sendWarningToStudent(String violationId, {String? customMessage}) {
+    final idx = _violations.indexWhere((v) => v.id == violationId);
+    if (idx != -1) {
+      final viol = _violations[idx];
+      _violations[idx] = viol.copyWith(
+        status: 'WARNED',
+        actionTaken: 'Screen Warning Dispatched',
+      );
+      
+      _activeStudentNotice = customMessage ?? 
+          '⚠️ FocusGuard Warning: Unauthorized mobile usage detected in ${viol.room} (${viol.subject}). Please stow away your device immediately.';
+      
+      if (_latestUrgentAlert?.id == violationId) {
+        _latestUrgentAlert = _violations[idx];
+      }
+
+      notifyListeners();
+
+      try {
+        FirebaseFirestore.instance
+            .collection('phoneViolations')
+            .doc(violationId)
+            .update({
+          'status': 'WARNED',
+          'actionTaken': 'Screen Warning Dispatched',
+        });
+      } catch (_) {}
+    }
+  }
+
+  /// Summon student to faculty desk in real-time
+  void summonStudentToDesk(String violationId) {
+    final idx = _violations.indexWhere((v) => v.id == violationId);
+    if (idx != -1) {
+      final viol = _violations[idx];
+      _violations[idx] = viol.copyWith(
+        status: 'SUMMONED',
+        actionTaken: 'Summoned to Faculty Desk',
+      );
+
+      _activeStudentNotice = 
+          '🚨 IMMEDIATE SUMMONS: Faculty Revathi G requests your presence at the desk in ${viol.room} regarding phone usage violation.';
+
+      if (_latestUrgentAlert?.id == violationId) {
+        _latestUrgentAlert = _violations[idx];
+      }
+
+      notifyListeners();
+
+      try {
+        FirebaseFirestore.instance
+            .collection('phoneViolations')
+            .doc(violationId)
+            .update({
+          'status': 'SUMMONED',
+          'actionTaken': 'Summoned to Faculty Desk',
+        });
+      } catch (_) {}
+    }
+  }
+
+  /// Escalate violation to HOD / Academic Dean
+  void escalateViolation(String violationId, String reason) {
+    final idx = _violations.indexWhere((v) => v.id == violationId);
+    if (idx != -1) {
+      final viol = _violations[idx];
+      _violations[idx] = viol.copyWith(
+        status: 'ESCALATED',
+        urgency: 'CRITICAL',
+        actionTaken: 'Escalated to HOD: $reason',
+      );
+
+      final logId = 'log_${DateTime.now().millisecondsSinceEpoch}';
+      final log = FocusGuardLog(
+        id: logId,
+        staffId: viol.facultyId,
+        staffName: 'REVATHI G',
+        action: 'ESCALATED_TO_HOD',
+        subject: viol.subject,
+        room: viol.room,
+        period: viol.period,
+        timestamp: DateTime.now(),
+        reason: 'Student ${viol.studentName} (${viol.studentId}) escalated: $reason',
+      );
+      _auditLogs.insert(0, log);
+
+      if (_latestUrgentAlert?.id == violationId) {
+        _latestUrgentAlert = null;
+      }
+
+      notifyListeners();
+
+      try {
+        FirebaseFirestore.instance
+            .collection('phoneViolations')
+            .doc(violationId)
+            .update({
+          'status': 'ESCALATED',
+          'urgency': 'CRITICAL',
+          'actionTaken': 'Escalated to HOD: $reason',
+        });
+        FirebaseFirestore.instance
+            .collection('focusGuardLogs')
+            .doc(logId)
+            .set(log.toMap());
+      } catch (_) {}
+    }
+  }
+
   void acknowledgeViolation(String id) {
     final idx = _violations.indexWhere((v) => v.id == id);
     if (idx != -1) {
-      _violations[idx] = _violations[idx].copyWith(status: 'ACKNOWLEDGED');
+      _violations[idx] = _violations[idx].copyWith(status: 'ACKNOWLEDGED', actionTaken: 'Acknowledged & Logged');
+      if (_latestUrgentAlert?.id == id) {
+        _latestUrgentAlert = null;
+      }
       notifyListeners();
 
       try {
         FirebaseFirestore.instance
             .collection('phoneViolations')
             .doc(id)
-            .update({'status': 'ACKNOWLEDGED'});
+            .update({'status': 'ACKNOWLEDGED', 'actionTaken': 'Acknowledged & Logged'});
       } catch (_) {}
     }
   }

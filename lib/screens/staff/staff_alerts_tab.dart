@@ -8,13 +8,27 @@ import '../../widgets/gradient_card.dart';
 import '../../widgets/focus_guard_violation_card.dart';
 import '../../widgets/focus_guard_admin_modal.dart';
 
-class StaffAlertsTab extends StatelessWidget {
+class StaffAlertsTab extends StatefulWidget {
   const StaffAlertsTab({super.key});
+
+  @override
+  State<StaffAlertsTab> createState() => _StaffAlertsTabState();
+}
+
+class _StaffAlertsTabState extends State<StaffAlertsTab> {
+  String _selectedFilter = 'ALL'; // 'ALL', 'UNACK', 'CRITICAL', 'RESOLVED'
 
   @override
   Widget build(BuildContext context) {
     final focusGuard = Provider.of<FocusGuardService>(context);
-    final violations = focusGuard.violations;
+    final allViolations = focusGuard.violations;
+
+    final filteredViolations = allViolations.where((v) {
+      if (_selectedFilter == 'UNACK') return v.status != 'ACKNOWLEDGED';
+      if (_selectedFilter == 'CRITICAL') return v.urgency == 'CRITICAL' || v.usageDuration >= 30;
+      if (_selectedFilter == 'RESOLVED') return v.status == 'ACKNOWLEDGED';
+      return true;
+    }).toList();
 
     return Scaffold(
       backgroundColor: AppColors.darkNavy,
@@ -25,7 +39,7 @@ class StaffAlertsTab extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Top Header Row with Settings Icon
+              // Top Header Row with Trigger Settings & Sound Toggles
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -44,7 +58,7 @@ class StaffAlertsTab extends StatelessWidget {
                         ).animate().fadeIn(duration: 300.ms),
                         const SizedBox(height: 4),
                         Text(
-                          'Classroom phone violations & zone telemetry',
+                          'Classroom phone violations & live telemetry',
                           style: GoogleFonts.poppins(
                             fontSize: 13,
                             fontWeight: FontWeight.w400,
@@ -54,89 +68,254 @@ class StaffAlertsTab extends StatelessWidget {
                       ],
                     ),
                   ),
-                  GestureDetector(
-                    onTap: () {
-                      showModalBottomSheet(
-                        context: context,
-                        isScrollControlled: true,
-                        backgroundColor: Colors.transparent,
-                        builder: (_) => const FocusGuardAdminModal(),
-                      );
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: AppColors.deepNavy,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: AppColors.borderLight),
+                  Row(
+                    children: [
+                      // Haptic / Sound Toggle Button
+                      GestureDetector(
+                        onTap: () {
+                          focusGuard.toggleHaptic(!focusGuard.hapticEnabled);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(focusGuard.hapticEnabled ? '📳 Haptic trigger alerts enabled' : '📴 Haptic trigger alerts muted'),
+                              duration: const Duration(seconds: 1),
+                              backgroundColor: AppColors.deepNavy,
+                            ),
+                          );
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: focusGuard.hapticEnabled
+                                ? AppColors.alertRed.withOpacity(0.18)
+                                : AppColors.deepNavy,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: focusGuard.hapticEnabled
+                                  ? AppColors.alertRed
+                                  : AppColors.borderLight,
+                            ),
+                          ),
+                          child: Icon(
+                            focusGuard.hapticEnabled
+                                ? Icons.vibration_rounded
+                                : Icons.phonelink_ring_rounded,
+                            color: focusGuard.hapticEnabled
+                                ? AppColors.alertRed
+                                : AppColors.textGrey,
+                            size: 22,
+                          ),
+                        ),
                       ),
-                      child: const Icon(
-                        Icons.tune_rounded,
-                        color: AppColors.brightCyan,
-                        size: 22,
+                      const SizedBox(width: 8),
+                      GestureDetector(
+                        onTap: () {
+                          showModalBottomSheet(
+                            context: context,
+                            isScrollControlled: true,
+                            backgroundColor: Colors.transparent,
+                            builder: (_) => const FocusGuardAdminModal(),
+                          );
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: AppColors.deepNavy,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: AppColors.borderLight),
+                          ),
+                          child: const Icon(
+                            Icons.tune_rounded,
+                            color: AppColors.brightCyan,
+                            size: 22,
+                          ),
+                        ),
                       ),
-                    ),
+                    ],
                   ),
                 ],
               ),
+
+              const SizedBox(height: 18),
+
+              // ---------------- LIVE TRIGGER & SIREN TEST CARD ----------------
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF1F0C2C), Color(0xFF0F1B3B)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(22),
+                  border: Border.all(color: AppColors.electricBlue.withOpacity(0.5), width: 1.2),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.electricBlue.withOpacity(0.2),
+                      blurRadius: 16,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(6),
+                              decoration: BoxDecoration(
+                                color: AppColors.brightCyan.withOpacity(0.2),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(Icons.bolt_rounded, color: AppColors.brightCyan, size: 18),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Instant Alert Trigger Center',
+                              style: GoogleFonts.poppins(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w800,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ],
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: AppColors.brightGreen.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: AppColors.brightGreen, width: 0.8),
+                          ),
+                          child: Text(
+                            'TELEMETRY LIVE',
+                            style: GoogleFonts.poppins(
+                              fontSize: 9,
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.brightGreen,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Test faculty siren alarms or dispatch instant simulated phone violations across classroom ECE-204.',
+                      style: GoogleFonts.poppins(fontSize: 11, color: AppColors.textGrey, height: 1.3),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: () {
+                              focusGuard.triggerLiveSimulatedViolation(
+                                studentName: 'Mahil Ram E K',
+                                studentId: '927624BEC121',
+                                duration: 36,
+                                urgency: 'CRITICAL',
+                              );
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  backgroundColor: AppColors.alertRed,
+                                  content: Text('🚨 Live 36s violation triggered! Heads-up banner & haptic siren dispatched.'),
+                                ),
+                              );
+                            },
+                            icon: const Icon(Icons.warning_amber_rounded, size: 16),
+                            label: const Text('Trigger Test Siren', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.alertRed,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                              elevation: 4,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        ElevatedButton.icon(
+                          onPressed: () {
+                            focusGuard.setPhoneUsageState(true);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                backgroundColor: AppColors.deepNavy,
+                                content: Text('📱 Continuous 20s counter started on student device.'),
+                              ),
+                            );
+                          },
+                          icon: const Icon(Icons.timer_outlined, size: 16),
+                          label: const Text('Start 20s', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.electricBlue.withOpacity(0.3),
+                            foregroundColor: AppColors.brightCyan,
+                            side: const BorderSide(color: AppColors.brightCyan),
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ).animate().fadeIn(duration: 350.ms).slideY(begin: 0.05, end: 0),
 
               const SizedBox(height: 20),
 
-              // ---------------- FOCUSGUARD CLASSROOM PHONE ALERTS ----------------
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'FOCUSGUARD PHONE ALERTS',
-                    style: GoogleFonts.poppins(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.alertRed,
-                      letterSpacing: 1.2,
-                    ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: AppColors.alertRed.withOpacity(0.15),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      '${violations.where((v) => v.status == "NEW").length} NEW',
-                      style: GoogleFonts.poppins(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.alertRed,
-                      ),
-                    ),
-                  ),
-                ],
+              // ---------------- FILTER CHIPS ROW ----------------
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    _buildFilterChip('ALL', 'All (${allViolations.length})'),
+                    const SizedBox(width: 8),
+                    _buildFilterChip('UNACK', '🚨 Pending (${focusGuard.unacknowledgedCount})'),
+                    const SizedBox(width: 8),
+                    _buildFilterChip('CRITICAL', '🔥 Critical'),
+                    const SizedBox(width: 8),
+                    _buildFilterChip('RESOLVED', '✔️ Resolved'),
+                  ],
+                ),
               ),
 
-              const SizedBox(height: 12),
+              const SizedBox(height: 16),
 
-              if (violations.isEmpty)
+              // ---------------- VIOLATIONS LIST ----------------
+              if (filteredViolations.isEmpty)
                 Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.all(18),
+                  padding: const EdgeInsets.all(24),
                   decoration: BoxDecoration(
                     color: AppColors.deepNavy,
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(color: AppColors.borderLight),
                   ),
                   child: Center(
-                    child: Text(
-                      'No phone usage violations detected in current sessions.',
-                      style: GoogleFonts.poppins(fontSize: 12, color: AppColors.textGrey),
+                    child: Column(
+                      children: [
+                        const Icon(Icons.check_circle_outline_rounded, color: AppColors.brightGreen, size: 36),
+                        const SizedBox(height: 8),
+                        Text(
+                          'No violations matching this filter.',
+                          style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white),
+                        ),
+                        Text(
+                          'Use the Trigger Center above to simulate a live event.',
+                          style: GoogleFonts.poppins(fontSize: 11, color: AppColors.textGrey),
+                        ),
+                      ],
                     ),
                   ),
                 )
               else
-                ...violations.map((violation) {
+                ...filteredViolations.map((violation) {
                   return FocusGuardViolationStaffCard(
                     violation: violation,
                     focusGuard: focusGuard,
-                  ).animate().fadeIn(delay: 150.ms).slideY(begin: 0.05, end: 0);
+                  ).animate().fadeIn(delay: 100.ms).slideY(begin: 0.04, end: 0);
                 }),
 
               const SizedBox(height: 24),
@@ -328,6 +507,49 @@ class StaffAlertsTab extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildFilterChip(String key, String label) {
+    final isSelected = _selectedFilter == key;
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _selectedFilter = key;
+        });
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? (key == 'UNACK'
+                  ? AppColors.alertRed
+                  : (key == 'CRITICAL' ? Colors.purpleAccent : AppColors.electricBlue))
+              : AppColors.deepNavy,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: isSelected ? Colors.transparent : AppColors.borderLight,
+          ),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: (key == 'UNACK' ? AppColors.alertRed : AppColors.electricBlue).withOpacity(0.4),
+                    blurRadius: 10,
+                    offset: const Offset(0, 2),
+                  ),
+                ]
+              : null,
+        ),
+        child: Text(
+          label,
+          style: GoogleFonts.poppins(
+            fontSize: 11,
+            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+            color: isSelected ? Colors.white : AppColors.textGrey,
+          ),
+        ),
       ),
     );
   }

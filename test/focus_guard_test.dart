@@ -114,4 +114,54 @@ void main() {
       expect(updated.status, 'ACKNOWLEDGED');
     });
   });
+
+  group('FocusGuard Live Triggering & Staff Action Suite Tests', () {
+    test('Triggering live simulated violation creates CRITICAL alert and sets latestUrgentAlert', () {
+      final service = FocusGuardService();
+      service.triggerLiveSimulatedViolation(
+        studentName: 'Test Student',
+        studentId: '927624BEC999',
+        duration: 35,
+        urgency: 'CRITICAL',
+      );
+
+      expect(service.latestUrgentAlert, isNotNull);
+      expect(service.latestUrgentAlert!.studentName, 'Test Student');
+      expect(service.latestUrgentAlert!.urgency, 'CRITICAL');
+      expect(service.unacknowledgedCount, greaterThan(0));
+    });
+
+    test('Sending warning notice to student updates violation status and sets activeStudentNotice', () {
+      final service = FocusGuardService();
+      final violId = service.violations.first.id;
+
+      service.sendWarningToStudent(violId);
+      final updated = service.violations.firstWhere((v) => v.id == violId);
+
+      expect(updated.status, 'WARNED');
+      expect(service.activeStudentNotice, contains('FocusGuard Warning'));
+    });
+
+    test('Summoning student to desk updates status to SUMMONED and broadcasts summons', () {
+      final service = FocusGuardService();
+      final violId = service.violations.first.id;
+
+      service.summonStudentToDesk(violId);
+      final updated = service.violations.firstWhere((v) => v.id == violId);
+
+      expect(updated.status, 'SUMMONED');
+      expect(service.activeStudentNotice, contains('IMMEDIATE SUMMONS'));
+    });
+
+    test('Escalating violation creates HOD audit log and marks status as ESCALATED', () {
+      final service = FocusGuardService();
+      final violId = service.violations.first.id;
+
+      service.escalateViolation(violId, 'Repeated unauthorized device usage');
+      final updated = service.violations.firstWhere((v) => v.id == violId);
+
+      expect(updated.status, 'ESCALATED');
+      expect(service.auditLogs.first.action, 'ESCALATED_TO_HOD');
+    });
+  });
 }

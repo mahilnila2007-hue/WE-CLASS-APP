@@ -97,7 +97,10 @@ class PhoneViolation {
   final int threshold;
   final DateTime timestamp;
   final String type;
-  final String status; // 'NEW', 'ACKNOWLEDGED'
+  final String status; // 'NEW', 'ACKNOWLEDGED', 'WARNED', 'SUMMONED', 'ESCALATED'
+  final String urgency; // 'LOW', 'MEDIUM', 'HIGH', 'CRITICAL'
+  final String actionTaken;
+  final String studentPhone;
 
   const PhoneViolation({
     required this.id,
@@ -114,6 +117,9 @@ class PhoneViolation {
     required this.timestamp,
     this.type = 'PHONE_USAGE',
     this.status = 'NEW',
+    this.urgency = 'HIGH',
+    this.actionTaken = 'NONE',
+    this.studentPhone = '+91 98401 23456',
   });
 
   PhoneViolation copyWith({
@@ -131,6 +137,9 @@ class PhoneViolation {
     DateTime? timestamp,
     String? type,
     String? status,
+    String? urgency,
+    String? actionTaken,
+    String? studentPhone,
   }) {
     return PhoneViolation(
       id: id ?? this.id,
@@ -147,6 +156,9 @@ class PhoneViolation {
       timestamp: timestamp ?? this.timestamp,
       type: type ?? this.type,
       status: status ?? this.status,
+      urgency: urgency ?? this.urgency,
+      actionTaken: actionTaken ?? this.actionTaken,
+      studentPhone: studentPhone ?? this.studentPhone,
     );
   }
 
@@ -166,6 +178,9 @@ class PhoneViolation {
       'timestamp': timestamp.toIso8601String(),
       'type': type,
       'status': status,
+      'urgency': urgency,
+      'actionTaken': actionTaken,
+      'studentPhone': studentPhone,
     };
   }
 
@@ -187,6 +202,9 @@ class PhoneViolation {
           : DateTime.now(),
       type: map['type'] ?? 'PHONE_USAGE',
       status: map['status'] ?? 'NEW',
+      urgency: map['urgency'] ?? 'HIGH',
+      actionTaken: map['actionTaken'] ?? 'NONE',
+      studentPhone: map['studentPhone'] ?? '+91 98401 23456',
     );
   }
 }

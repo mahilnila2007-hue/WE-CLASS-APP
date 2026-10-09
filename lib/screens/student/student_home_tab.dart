@@ -5,6 +5,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import '../../theme/app_theme.dart';
 import '../../services/auth_service.dart';
 import '../../services/campus_data_service.dart';
+import '../../services/focus_guard_service.dart';
 import '../../widgets/gradient_card.dart';
 import '../../widgets/focus_guard_student_card.dart';
 
@@ -20,8 +21,10 @@ class StudentHomeTab extends StatelessWidget {
   Widget build(BuildContext context) {
     final authService = Provider.of<AuthService>(context);
     final campusData = Provider.of<CampusDataService>(context);
+    final focusGuard = Provider.of<FocusGuardService>(context);
     final user = authService.currentUser ?? AuthService.defaultStudent;
     final attendance = campusData.studentAttendanceOverview;
+    final activeNotice = focusGuard.activeStudentNotice;
 
     return Scaffold(
       backgroundColor: AppColors.darkNavy,
@@ -102,6 +105,80 @@ class StudentHomeTab extends StatelessWidget {
                   ),
                 ],
               ).animate().fadeIn(duration: 400.ms),
+
+              // 🚨 REAL-TIME FACULTY SUMMONS / WARNING BANNER
+              if (activeNotice != null) ...[
+                const SizedBox(height: 18),
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF330909), Color(0xFF1E0A1E)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: AppColors.alertRed, width: 1.5),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.alertRed.withOpacity(0.4),
+                        blurRadius: 18,
+                        spreadRadius: 1,
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(Icons.warning_amber_rounded, color: AppColors.alertRed, size: 20),
+                              const SizedBox(width: 8),
+                              Text(
+                                'FACULTY DIRECT NOTIFICATION',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w800,
+                                  color: AppColors.alertRed,
+                                  letterSpacing: 0.8,
+                                ),
+                              ),
+                            ],
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.close_rounded, color: Colors.white70, size: 18),
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                            onPressed: () => focusGuard.dismissStudentNotice(),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        activeNotice,
+                        style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white, height: 1.4),
+                      ),
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: () => focusGuard.dismissStudentNotice(),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.alertRed,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            padding: const EdgeInsets.symmetric(vertical: 10),
+                          ),
+                          child: const Text('I Understand & Acknowledge', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                        ),
+                      ),
+                    ],
+                  ),
+                ).animate().slideY(begin: -0.2, end: 0, duration: 300.ms).fadeIn(),
+              ],
 
               const SizedBox(height: 24),
 
