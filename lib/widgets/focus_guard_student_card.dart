@@ -191,46 +191,66 @@ class FocusGuardStudentCard extends StatelessWidget {
           // Continuous Usage Live Status Banner
           if (state == FocusGuardState.active) ...[
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
               decoration: BoxDecoration(
                 color: focusGuard.isPhoneActivelyInUse
                     ? AppColors.alertRed.withOpacity(0.12)
                     : AppColors.deepNavy,
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(16),
                 border: Border.all(
                   color: focusGuard.isPhoneActivelyInUse
-                      ? AppColors.alertRed.withOpacity(0.4)
+                      ? AppColors.alertRed.withOpacity(0.5)
                       : AppColors.borderLight,
                 ),
               ),
-              child: Row(
+              child: Column(
                 children: [
-                  Icon(
-                    focusGuard.isPhoneActivelyInUse
-                        ? Icons.phone_android_rounded
-                        : Icons.lock_clock_rounded,
-                    size: 16,
-                    color: focusGuard.isPhoneActivelyInUse
-                        ? AppColors.alertRed
-                        : AppColors.brightCyan,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      focusGuard.isPhoneActivelyInUse
-                          ? 'Continuous Phone Usage: ${focusGuard.currentContinuousUsageSeconds}s / ${focusGuard.phoneUsageThreshold}s limit'
-                          : 'Monitoring phone usage in active class session.',
-                      style: GoogleFonts.poppins(
-                        fontSize: 11,
-                        fontWeight: focusGuard.isPhoneActivelyInUse
-                            ? FontWeight.w700
-                            : FontWeight.w500,
+                  Row(
+                    children: [
+                      Icon(
+                        focusGuard.isPhoneActivelyInUse
+                            ? Icons.phone_android_rounded
+                            : Icons.lock_clock_rounded,
+                        size: 18,
                         color: focusGuard.isPhoneActivelyInUse
                             ? AppColors.alertRed
-                            : AppColors.textGrey,
+                            : AppColors.brightCyan,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          focusGuard.isPhoneActivelyInUse
+                              ? 'Active Classroom Usage: ${focusGuard.currentContinuousUsageSeconds}s / ${focusGuard.phoneUsageThreshold}s limit'
+                              : 'Monitoring phone usage in active class session.',
+                          style: GoogleFonts.poppins(
+                            fontSize: 11,
+                            fontWeight: focusGuard.isPhoneActivelyInUse
+                                ? FontWeight.w700
+                                : FontWeight.w500,
+                            color: focusGuard.isPhoneActivelyInUse
+                                ? AppColors.alertRed
+                                : AppColors.textGrey,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (focusGuard.isPhoneActivelyInUse) ...[
+                    const SizedBox(height: 8),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(6),
+                      child: LinearProgressIndicator(
+                        value: (focusGuard.currentContinuousUsageSeconds / focusGuard.phoneUsageThreshold).clamp(0.0, 1.0),
+                        backgroundColor: AppColors.darkNavy,
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          focusGuard.currentContinuousUsageSeconds >= focusGuard.phoneUsageThreshold
+                              ? AppColors.alertRed
+                              : AppColors.brightCyan,
+                        ),
+                        minHeight: 5,
                       ),
                     ),
-                  ),
+                  ],
                 ],
               ),
             ),

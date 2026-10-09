@@ -113,22 +113,60 @@ class FocusGuardStaffCard extends StatelessWidget {
 
           // Dynamic Action / Status State Rendering
           if (state == FocusGuardState.active) ...[
-            Row(
+            Column(
               children: [
-                Expanded(
-                  child: Text(
-                    'Monitoring active student phone usage.',
-                    style: GoogleFonts.poppins(
-                      fontSize: 12,
-                      color: AppColors.textGrey,
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        '🟢 Monitoring active for all student devices in ${period.room}.',
+                        style: GoogleFonts.poppins(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.brightGreen,
+                        ),
+                      ),
                     ),
-                  ),
+                    const SizedBox(width: 10),
+                    _buildActionButton(
+                      label: 'PAUSE',
+                      gradient: AppColors.orangeGradient,
+                      onTap: () => _showDisableDialog(context, focusGuard, staff.displayId, staff.name),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 10),
-                _buildActionButton(
-                  label: 'DISABLE',
-                  gradient: AppColors.orangeGradient,
-                  onTap: () => _showDisableDialog(context, focusGuard, staff.displayId, staff.name),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: () {
+                          focusGuard.triggerLiveSimulatedViolation(
+                            studentName: 'Mahil Ram E K',
+                            studentId: '927624BEC121',
+                            duration: 25,
+                            urgency: 'HIGH',
+                          );
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              backgroundColor: AppColors.alertRed,
+                              content: Text('🚨 25s mobile usage violation triggered on faculty screen!'),
+                            ),
+                          );
+                        },
+                        icon: const Icon(Icons.notifications_active_rounded, size: 14),
+                        label: const Text('Test Live Alert Siren', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.alertRed.withOpacity(0.2),
+                          foregroundColor: AppColors.alertRed,
+                          side: const BorderSide(color: AppColors.alertRed),
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          elevation: 0,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -137,7 +175,7 @@ class FocusGuardStaffCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Monitoring temporarily disabled by faculty (${focusGuard.manualDisableReason.isNotEmpty ? focusGuard.manualDisableReason : "Faculty decision"}).',
+                  'Monitoring temporarily paused by faculty (${focusGuard.manualDisableReason.isNotEmpty ? focusGuard.manualDisableReason : "Faculty decision"}).',
                   style: GoogleFonts.poppins(
                     fontSize: 12,
                     color: AppColors.textGrey,
@@ -147,21 +185,21 @@ class FocusGuardStaffCard extends StatelessWidget {
                 SizedBox(
                   width: double.infinity,
                   child: _buildActionButton(
-                    label: 'ENABLE MONITORING',
+                    label: 'START CLASS MONITORING',
                     gradient: AppColors.primaryGradient,
                     onTap: () async {
                       final enabled = await focusGuard.enableMonitoringByFaculty(
                         staffId: staff.displayId,
                         staffName: staff.name,
                       );
-                      if (!enabled && context.mounted) {
+                      if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
                             content: Text(
-                              'Current period is a break. Monitoring automatically resumes at ${focusGuard.timetable.firstWhere((p) => !p.isBreakOrLunch && p.startMinutesOfDay > focusGuard.currentPeriod.startMinutesOfDay, orElse: () => focusGuard.currentPeriod).startTimeFormatted}.',
+                              enabled ? '🟢 Classroom monitoring active across student devices.' : 'Break time active.',
                               style: GoogleFonts.poppins(color: Colors.white),
                             ),
-                            backgroundColor: AppColors.orange,
+                            backgroundColor: enabled ? AppColors.brightGreen : AppColors.orange,
                             behavior: SnackBarBehavior.floating,
                           ),
                         );

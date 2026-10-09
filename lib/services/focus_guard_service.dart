@@ -13,10 +13,16 @@ class FocusGuardService extends ChangeNotifier {
   bool _notificationsEnabled = true;
   bool _hapticEnabled = true;
   bool _soundAlertEnabled = true;
+  bool _forceMonitoringActive = true; // Enabled by default for active class demonstration
 
   // Faculty manual override state for current class
   bool _isManuallyDisabledByFaculty = false;
   String _manualDisableReason = '';
+
+  // Current Logged-in Student Info (for accurate violation reporting)
+  String _activeStudentId = '927624BEC121';
+  String _activeStudentName = 'Mahil Ram E K';
+  String _activeStudentDept = 'ECE';
 
   // Phone Usage Timer & Tracking
   Timer? _usageTicker;
@@ -45,6 +51,7 @@ class FocusGuardService extends ChangeNotifier {
   bool get notificationsEnabled => _notificationsEnabled;
   bool get hapticEnabled => _hapticEnabled;
   bool get soundAlertEnabled => _soundAlertEnabled;
+  bool get forceMonitoringActive => _forceMonitoringActive;
   bool get isManuallyDisabledByFaculty => _isManuallyDisabledByFaculty;
   String get manualDisableReason => _manualDisableReason;
   int get currentContinuousUsageSeconds => _currentContinuousUsageSeconds;
@@ -56,6 +63,12 @@ class FocusGuardService extends ChangeNotifier {
   PhoneViolation? get latestUrgentAlert => _latestUrgentAlert;
   String? get activeStudentNotice => _activeStudentNotice;
   int get unacknowledgedCount => _violations.where((v) => v.status != 'ACKNOWLEDGED').length;
+
+  void setActiveStudent({required String studentId, required String name, required String dept}) {
+    _activeStudentId = studentId;
+    _activeStudentName = name;
+    _activeStudentDept = dept;
+  }
 
   FocusGuardService() {
     _initDefaultTimetable();
@@ -404,9 +417,9 @@ class FocusGuardService extends ChangeNotifier {
 
     final violation = PhoneViolation(
       id: newId,
-      studentId: '927624BEC121',
-      studentName: 'Mahil Ram E K',
-      department: 'ECE',
+      studentId: _activeStudentId,
+      studentName: _activeStudentName,
+      department: _activeStudentDept,
       year: 'III Year',
       subject: period.subject,
       room: period.room,
@@ -424,6 +437,7 @@ class FocusGuardService extends ChangeNotifier {
 
     _violations.insert(0, violation);
     _latestUrgentAlert = violation;
+    _activeStudentNotice = '⚠️ FocusGuard Alert: Continuous phone usage (${duration}s) detected during ${period.subject} in ${period.room}. Violation reported to Faculty.';
     
     // Trigger Haptic Feedback on Staff Device
     if (_hapticEnabled) {
