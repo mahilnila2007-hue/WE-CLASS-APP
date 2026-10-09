@@ -91,7 +91,7 @@ void main() {
       expect(aiPlumb.assignedDepartment, 'Civil & Plumbing Maintenance');
     });
 
-    test('Submitting new complaint adds it to tracking list', () async {
+    test('Submitting new complaint adds it to tracking list and retains photo evidence', () async {
       final data = CampusDataService();
       final countBefore = data.allComplaints.length;
 
@@ -101,11 +101,18 @@ void main() {
         location: 'Room 202',
         reporterName: 'Mahil Ram E K',
         reporterId: '927624BEC121',
+        imagePath: 'data:image/jpeg;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
       );
 
       expect(data.allComplaints.length, countBefore + 1);
       expect(newComplaint.status, ComplaintStatus.analyzing);
+      expect(newComplaint.imagePath, isNotNull);
       expect(data.allComplaints.first.id, newComplaint.id);
+
+      final map = newComplaint.toMap();
+      final reconstituted = CampusComplaint.fromMap(map, newComplaint.id);
+      expect(reconstituted.imagePath, newComplaint.imagePath);
+      expect(reconstituted.title, newComplaint.title);
     });
   });
 }

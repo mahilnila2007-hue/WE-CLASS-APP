@@ -1,13 +1,17 @@
+import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../theme/app_theme.dart';
 import '../../models/complaint_model.dart';
 import '../../services/auth_service.dart';
 import '../../services/campus_data_service.dart';
 import '../../widgets/gradient_card.dart';
 import '../../widgets/glowing_button.dart';
+import '../../widgets/complaint_photo_viewer.dart';
 
 class StudentComplaintsTab extends StatefulWidget {
   const StudentComplaintsTab({super.key});
@@ -25,7 +29,10 @@ class _StudentComplaintsTabState extends State<StudentComplaintsTab>
   final _descController = TextEditingController();
   final _locController = TextEditingController();
   bool _isSubmitting = false;
-  String? _selectedImageSource;
+
+  String? _capturedImageBase64;
+  Uint8List? _selectedImageBytes;
+  String? _selectedImageName;
 
   @override
   void initState() {
@@ -205,6 +212,38 @@ class _StudentComplaintsTabState extends State<StudentComplaintsTab>
     );
   }
 
+  Future<void> _pickImage(ImageSource source) async {
+    try {
+      final picker = ImagePicker();
+      final pickedFile = await picker.pickImage(
+        source: source,
+        maxWidth: 800,
+        maxHeight: 800,
+        imageQuality: 70,
+      );
+
+      if (pickedFile != null) {
+        final bytes = await pickedFile.readAsBytes();
+        final base64String = base64Encode(bytes);
+        setState(() {
+          _selectedImageBytes = bytes;
+          _selectedImageName = pickedFile.name;
+          _capturedImageBase64 = 'data:image/jpeg;base64,$base64String';
+        });
+      }
+    } catch (e) {
+      debugPrint('Error picking image: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Could not access image: $e'),
+            backgroundColor: AppColors.alertRed,
+          ),
+        );
+      }
+    }
+  }
+
   Future<void> _handleSubmit() async {
     if (_titleController.text.trim().isEmpty ||
         _descController.text.trim().isEmpty ||
@@ -236,7 +275,7 @@ class _StudentComplaintsTabState extends State<StudentComplaintsTab>
       location: _locController.text.trim(),
       reporterName: user.name,
       reporterId: user.displayId,
-      imagePath: _selectedImageSource != null ? 'attached_asset' : null,
+      imagePath: _capturedImageBase64,
     );
 
     setState(() {
@@ -244,7 +283,9 @@ class _StudentComplaintsTabState extends State<StudentComplaintsTab>
       _titleController.clear();
       _descController.clear();
       _locController.clear();
-      _selectedImageSource = null;
+      _capturedImageBase64 = null;
+      _selectedImageBytes = null;
+      _selectedImageName = null;
     });
 
     if (mounted) {
@@ -363,91 +404,155 @@ class _StudentComplaintsTabState extends State<StudentComplaintsTab>
             ),
             const SizedBox(height: 8),
 
-            Container(
-              width: double.infinity,
-              height: 140,
-              decoration: BoxDecoration(
-                color: AppColors.deepNavy,
-                borderRadius: BorderRadius.circular(22),
-                border: Border.all(
-                  color: _selectedImageSource != null
-                      ? AppColors.brightCyan
-                      : AppColors.borderSubtle,
-                  width: 1.5,
-                ),
-              ),
-              child: Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  onTap: _showPhotoPickerModal,
+            if (_selectedImageBytes != null)
+              Container(
+                width: double.infinity,
+                height: 180,
+                decoration: BoxDecoration(
+                  color: AppColors.deepNavy,
                   borderRadius: BorderRadius.circular(22),
-                  child: Center(
-                    child: _selectedImageSource != null
-                        ? Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Icon(
-                                Icons.check_circle_rounded,
-                                color: AppColors.brightGreen,
-                                size: 38,
-                              ),
-                              const SizedBox(height: 6),
-                              Text(
-                                'Photo Attached ($_selectedImageSource)',
-                                style: GoogleFonts.poppins(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.white,
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                'Tap to replace image',
-                                style: GoogleFonts.poppins(
-                                  fontSize: 11,
-                                  color: AppColors.textGrey,
-                                ),
-                              ),
-                            ],
-                          )
-                        : Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(10),
-                                decoration: BoxDecoration(
-                                  color: AppColors.electricBlue.withOpacity(0.15),
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Icon(
-                                  Icons.add_a_photo_rounded,
-                                  color: AppColors.brightCyan,
-                                  size: 26,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                '+ Add Photo',
-                                style: GoogleFonts.poppins(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w700,
-                                  color: Colors.white,
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                'Take Photo or Choose from Gallery',
-                                style: GoogleFonts.poppins(
-                                  fontSize: 11,
-                                  color: AppColors.textGrey,
-                                ),
-                              ),
-                            ],
+                  border: Border.all(color: AppColors.brightCyan, width: 1.5),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.brightCyan.withOpacity(0.2),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(20),
+                      child: Image.memory(
+                        _selectedImageBytes!,
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                    Positioned(
+                      top: 10,
+                      right: 10,
+                      child: GestureDetector(
+                        onTap: () {
+                          setState(() {
+                            _selectedImageBytes = null;
+                            _selectedImageName = null;
+                            _capturedImageBase64 = null;
+                          });
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withOpacity(0.7),
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.white24),
                           ),
+                          child: const Icon(Icons.close_rounded, color: Colors.white, size: 18),
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      bottom: 10,
+                      left: 10,
+                      right: 10,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: AppColors.deepNavy.withOpacity(0.85),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: AppColors.brightGreen.withOpacity(0.4)),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.check_circle_rounded, color: AppColors.brightGreen, size: 16),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                _selectedImageName ?? 'Photo attached',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.poppins(
+                                  color: Colors.white,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                            GestureDetector(
+                              onTap: _showPhotoPickerModal,
+                              child: Text(
+                                'Change',
+                                style: GoogleFonts.poppins(
+                                  color: AppColors.brightCyan,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ).animate().fadeIn(duration: 200.ms)
+            else
+              Container(
+                width: double.infinity,
+                height: 140,
+                decoration: BoxDecoration(
+                  color: AppColors.deepNavy,
+                  borderRadius: BorderRadius.circular(22),
+                  border: Border.all(
+                    color: AppColors.borderSubtle,
+                    width: 1.5,
                   ),
                 ),
-              ),
-            ).animate().fadeIn(delay: 150.ms),
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: _showPhotoPickerModal,
+                    borderRadius: BorderRadius.circular(22),
+                    child: Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: AppColors.electricBlue.withOpacity(0.15),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.add_a_photo_rounded,
+                              color: AppColors.brightCyan,
+                              size: 26,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            '+ Add Photo Evidence',
+                            style: GoogleFonts.poppins(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Take Photo or Choose from Gallery',
+                            style: GoogleFonts.poppins(
+                              fontSize: 11,
+                              color: AppColors.textGrey,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ).animate().fadeIn(delay: 150.ms),
 
             const SizedBox(height: 20),
 
@@ -580,10 +685,8 @@ class _StudentComplaintsTabState extends State<StudentComplaintsTab>
                     style: GoogleFonts.poppins(color: AppColors.textGrey, fontSize: 12),
                   ),
                   onTap: () {
-                    setState(() {
-                      _selectedImageSource = 'Camera Photo';
-                    });
                     Navigator.pop(context);
+                    _pickImage(ImageSource.camera);
                   },
                 ),
                 ListTile(
@@ -604,10 +707,8 @@ class _StudentComplaintsTabState extends State<StudentComplaintsTab>
                     style: GoogleFonts.poppins(color: AppColors.textGrey, fontSize: 12),
                   ),
                   onTap: () {
-                    setState(() {
-                      _selectedImageSource = 'Gallery Upload';
-                    });
                     Navigator.pop(context);
+                    _pickImage(ImageSource.gallery);
                   },
                 ),
               ],
@@ -764,6 +865,14 @@ class _StudentComplaintsTabState extends State<StudentComplaintsTab>
                 ),
               ],
             ),
+
+            if (complaint.imagePath != null && complaint.imagePath!.isNotEmpty) ...[
+              const SizedBox(height: 14),
+              ComplaintPhotoViewer(
+                imagePath: complaint.imagePath,
+                height: 160,
+              ),
+            ],
 
             const SizedBox(height: 16),
 

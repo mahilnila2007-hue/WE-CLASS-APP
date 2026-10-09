@@ -6,6 +6,7 @@ import '../../theme/app_theme.dart';
 import '../../models/complaint_model.dart';
 import '../../services/campus_data_service.dart';
 import '../../widgets/glowing_button.dart';
+import '../../widgets/complaint_photo_viewer.dart';
 
 class StaffComplaintsTab extends StatefulWidget {
   const StaffComplaintsTab({super.key});
@@ -247,6 +248,14 @@ class _StaffComplaintsTabState extends State<StaffComplaintsTab> {
             ],
           ),
 
+          if (complaint.imagePath != null && complaint.imagePath!.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            ComplaintPhotoViewer(
+              imagePath: complaint.imagePath,
+              height: 160,
+            ),
+          ],
+
           const SizedBox(height: 12),
 
           // Details Grid (Assigned, Status)
@@ -380,54 +389,64 @@ class _StaffComplaintsTabState extends State<StaffComplaintsTab> {
     showModalBottomSheet(
       context: context,
       backgroundColor: AppColors.deepNavy,
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (context) {
-        return Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Ticket ${complaint.id}',
-                    style: GoogleFonts.poppins(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w800,
-                      color: Colors.white,
+        return SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Ticket ${complaint.id}',
+                      style: GoogleFonts.poppins(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                      ),
                     ),
-                  ),
-                  Text(
-                    complaint.status.displayName,
-                    style: GoogleFonts.poppins(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.brightCyan,
+                    Text(
+                      complaint.status.displayName,
+                      style: GoogleFonts.poppins(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.brightCyan,
+                      ),
                     ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  complaint.title,
+                  style: GoogleFonts.poppins(fontSize: 15, fontWeight: FontWeight.w700, color: Colors.white),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  complaint.description,
+                  style: GoogleFonts.poppins(fontSize: 13, color: AppColors.textGrey, height: 1.3),
+                ),
+                if (complaint.imagePath != null && complaint.imagePath!.isNotEmpty) ...[
+                  const SizedBox(height: 14),
+                  ComplaintPhotoViewer(
+                    imagePath: complaint.imagePath,
+                    height: 180,
                   ),
                 ],
-              ),
-              const SizedBox(height: 12),
-              Text(
-                complaint.title,
-                style: GoogleFonts.poppins(fontSize: 15, fontWeight: FontWeight.w700, color: Colors.white),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                complaint.description,
-                style: GoogleFonts.poppins(fontSize: 13, color: AppColors.textGrey, height: 1.3),
-              ),
-              const SizedBox(height: 14),
-              Text(
-                'Reported by: ${complaint.reporterName} (${complaint.reporterId})',
-                style: GoogleFonts.poppins(fontSize: 12, color: AppColors.brightCyan),
-              ),
-              const SizedBox(height: 20),
-            ],
+                const SizedBox(height: 14),
+                Text(
+                  'Reported by: ${complaint.reporterName} (${complaint.reporterId})',
+                  style: GoogleFonts.poppins(fontSize: 12, color: AppColors.brightCyan),
+                ),
+                const SizedBox(height: 20),
+              ],
+            ),
           ),
         );
       },
