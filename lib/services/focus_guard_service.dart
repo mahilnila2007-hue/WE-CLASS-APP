@@ -740,6 +740,7 @@ class FocusGuardService extends ChangeNotifier {
   }
 
   void _fetchFromFirestore() async {
+    // 1. Config fetch
     try {
       final doc = await FirebaseFirestore.instance
           .collection('focusGuardConfig')
@@ -752,6 +753,27 @@ class FocusGuardService extends ChangeNotifier {
         _notificationsEnabled = data['notificationsEnabled'] ?? true;
         notifyListeners();
       }
+    } catch (_) {}
+
+    // 2. Real-time live violations stream
+    try {
+      FirebaseFirestore.instance
+          .collection('phoneViolations')
+          .snapshots()
+          .listen((snapshot) {
+        if (snapshot.docs.isNotEmpty) {
+          for (final doc in snapshot.docs) {
+            final violation = PhoneViolation.fromMap(doc.data(), doc.id);
+            final idx = _violations.indexWhere((v) => v.id == violation.id);
+            if (idx != -1) {
+              _violations[idx] = violation;
+            } else {
+              _violations.insert(0, violation);
+            }
+          }
+          notifyListeners();
+        }
+      }, onError: (e) => debugPrint('Firestore violations stream note: $e'));
     } catch (_) {}
   }
 }

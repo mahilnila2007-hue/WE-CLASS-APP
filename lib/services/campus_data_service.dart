@@ -1,10 +1,53 @@
 import 'package:flutter/foundation.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/attendance_model.dart';
 import '../models/blood_donor_model.dart';
 import '../models/complaint_model.dart';
 
 class CampusDataService extends ChangeNotifier {
+  CampusDataService() {
+    _initFirestoreSync();
+  }
+
+  void _initFirestoreSync() {
+    // Live complaints sync
+    try {
+      FirebaseFirestore.instance.collection('complaints').snapshots().listen((snapshot) {
+        if (snapshot.docs.isNotEmpty) {
+          for (final doc in snapshot.docs) {
+            final complaint = CampusComplaint.fromMap(doc.data(), doc.id);
+            final idx = _complaints.indexWhere((c) => c.id == complaint.id);
+            if (idx != -1) {
+              _complaints[idx] = complaint;
+            } else {
+              _complaints.insert(0, complaint);
+            }
+          }
+          notifyListeners();
+        }
+      }, onError: (e) => debugPrint('Firestore complaints stream note: $e'));
+    } catch (_) {}
+
+    // Live blood donors sync
+    try {
+      FirebaseFirestore.instance.collection('bloodDonors').snapshots().listen((snapshot) {
+        if (snapshot.docs.isNotEmpty) {
+          for (final doc in snapshot.docs) {
+            final donor = BloodDonor.fromMap(doc.data(), doc.id);
+            final idx = _bloodDonors.indexWhere((d) => d.id == donor.id);
+            if (idx != -1) {
+              _bloodDonors[idx] = donor;
+            } else {
+              _bloodDonors.add(donor);
+            }
+          }
+          notifyListeners();
+        }
+      }, onError: (e) => debugPrint('Firestore blood donors stream note: $e'));
+    } catch (_) {}
+  }
+
   // ---------------- ATTENDANCE DATA ----------------
   bool _isInsideCampus = true;
   final int _presentCount = 42;
@@ -369,6 +412,16 @@ class CampusDataService extends ChangeNotifier {
     _complaints.insert(0, complaint);
     notifyListeners();
 
+    // Persist to Cloud Firestore complaints collection
+    try {
+      await FirebaseFirestore.instance
+          .collection('complaints')
+          .doc(newId.replaceAll('#', ''))
+          .set(complaint.toMap());
+    } catch (e) {
+      debugPrint('Firestore complaint sync note: $e');
+    }
+
     // Simulate automated AI transition to assigned
     Future.delayed(const Duration(seconds: 2), () {
       final index = _complaints.indexWhere((c) => c.id == newId);
@@ -377,6 +430,13 @@ class CampusDataService extends ChangeNotifier {
           status: ComplaintStatus.assigned,
         );
         notifyListeners();
+
+        try {
+          FirebaseFirestore.instance
+              .collection('complaints')
+              .doc(newId.replaceAll('#', ''))
+              .update({'status': ComplaintStatus.assigned.name});
+        } catch (_) {}
       }
     });
 
@@ -388,6 +448,13 @@ class CampusDataService extends ChangeNotifier {
     if (index != -1) {
       _complaints[index] = _complaints[index].copyWith(status: newStatus);
       notifyListeners();
+
+      try {
+        FirebaseFirestore.instance
+            .collection('complaints')
+            .doc(id.replaceAll('#', ''))
+            .update({'status': newStatus.name});
+      } catch (_) {}
     }
   }
 
@@ -399,6 +466,16 @@ class CampusDataService extends ChangeNotifier {
         status: ComplaintStatus.inProgress,
       );
       notifyListeners();
+
+      try {
+        FirebaseFirestore.instance
+            .collection('complaints')
+            .doc(id.replaceAll('#', ''))
+            .update({
+          'assignedDepartment': newDepartment,
+          'status': ComplaintStatus.inProgress.name,
+        });
+      } catch (_) {}
     }
   }
 

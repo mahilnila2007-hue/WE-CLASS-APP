@@ -108,4 +108,47 @@ class CampusComplaint {
       imagePath: imagePath ?? this.imagePath,
     );
   }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'id': id,
+      'title': title,
+      'description': description,
+      'location': location,
+      'category': category,
+      'severity': severity,
+      'priority': priority,
+      'assignedDepartment': assignedDepartment,
+      'recommendedAction': recommendedAction,
+      'status': status.name,
+      'createdAt': createdAt.toIso8601String(),
+      'reporterName': reporterName,
+      'reporterId': reporterId,
+      'imagePath': imagePath,
+    };
+  }
+
+  factory CampusComplaint.fromMap(Map<String, dynamic> map, String id) {
+    return CampusComplaint(
+      id: id,
+      title: map['title'] ?? '',
+      description: map['description'] ?? '',
+      location: map['location'] ?? '',
+      category: map['category'] ?? 'General',
+      severity: map['severity'] ?? 'LOW',
+      priority: map['priority'] ?? 'MEDIUM',
+      assignedDepartment: map['assignedDepartment'] ?? 'Maintenance',
+      recommendedAction: map['recommendedAction'] ?? 'Inspection required',
+      status: ComplaintStatus.values.firstWhere(
+        (e) => e.name == map['status'],
+        orElse: () => ComplaintStatus.submitted,
+      ),
+      createdAt: map['createdAt'] != null
+          ? DateTime.tryParse(map['createdAt']) ?? DateTime.now()
+          : DateTime.now(),
+      reporterName: map['reporterName'] ?? '',
+      reporterId: map['reporterId'] ?? '',
+      imagePath: map['imagePath'],
+    );
+  }
 }
