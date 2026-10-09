@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1089298239075",
+    "project_id": "we-smartclass",
+    "storage_bucket": "we-smartclass.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1089298239075:android:dfa8d2f66f1bee71ef7256",
+        "android_client_info": {
+          "package_name": "com.weapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBImM9LwYRL3QUhd_6Y1uUyRLxHIIgzlEo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
